@@ -62,12 +62,10 @@ public class EmailGeneratorService {
         return text;
     }
 
-    /* -------------------- REQUEST BUILDERS -------------------- */
 
     private Map<String, Object> buildRequestBody(String tone, String instruction, boolean isReply, boolean hardCompose) {
         String userPrompt = isReply ? buildReplyPrompt(tone, instruction) : buildComposePrompt(tone, instruction, hardCompose);
 
-        // Strong system instruction for compose mode only
         Map<String, Object> systemInstruction = isReply ? null : Map.of(
             "role", "system",
             "parts", new Object[] {
@@ -205,12 +203,10 @@ public class EmailGeneratorService {
 
     /* -------------------- VALIDATION + FALLBACK -------------------- */
 
-    // Accept only a first-person leave request; reject reply/HR phrasing
     private boolean isOutboundLeaveRequest(String text) {
         if (text == null || text.isBlank()) return false;
         String t = text.toLowerCase(Locale.ROOT);
 
-        // Reject reply/recipient/HR phrases
         String[] bad = {
             "thank you for your email", "regarding your request", "as per your email",
             "following up on your email", "we will review", "i will get back to you",
@@ -219,18 +215,15 @@ public class EmailGeneratorService {
         };
         for (String p : bad) if (t.contains(p)) return false;
 
-        // Must be first-person + leave intent
         boolean firstPerson = t.contains(" i ") || t.startsWith("i ") || t.contains("i'm ") || t.contains("i would like");
         boolean leaveIntent = t.contains("leave") || t.contains("holiday") || t.contains("time off") || t.contains("vacation");
         return firstPerson && leaveIntent;
     }
 
-    // Deterministic fallback so we ALWAYS produce "Hello mam, ... Best regards, [Your Name]"
     private String fallbackLeaveTemplate(String instruction) {
         String greeting = extractGreetingOverride(instruction);
         if (greeting == null) greeting = "Hello mam,";
 
-        // Try to detect "2 days" / "3 days"
         String duration = null;
         Matcher dur = Pattern.compile("(?i)\\b(\\d{1,2})\\s*(day|days)\\b").matcher(instruction);
         if (dur.find()) {
@@ -238,7 +231,6 @@ public class EmailGeneratorService {
             duration = n + " " + (n.equals("1") ? "day" : "days");
         }
 
-        // Try to detect a single date like 9-11-2025, 09/11/2025, 9.11.2025
         String prettyDate = detectAndPrettyDate(instruction); // may be null
 
         String line;
@@ -279,7 +271,6 @@ public class EmailGeneratorService {
 
     /* -------------------- NORMALIZATION + UTILS -------------------- */
 
-    // Remove "write/draft/generate an email..." boilerplate so the model sees the intent
     private String normalizeInstruction(String raw) {
         String s = raw.trim();
         s = s.replaceFirst("(?i)^\\s*(please\\s+)?(write|draft|generate|create|compose)\\s+(an?\\s+)?(email|mail|message)\\s*(about|regarding|for)?\\s*", "");
@@ -289,7 +280,6 @@ public class EmailGeneratorService {
         return s.trim();
     }
 
-    // If user typed a greeting like "Hello mama," / "Hi Sir," keep it
     private String extractGreetingOverride(String instruction) {
         if (instruction == null) return null;
         Matcher m = Pattern.compile("^(?i)(hello|hi|dear)\\s+[^,\\n]{0,60},").matcher(instruction.trim());

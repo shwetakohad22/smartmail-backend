@@ -10,7 +10,6 @@ public class WebClientConfig {
 
     @Bean
     public WebClient webClient(WebClient.Builder builder) {
-        // optional: increase buffer for longer model responses
         ExchangeStrategies strategies = ExchangeStrategies.builder()
                 .codecs(c -> c.defaultCodecs().maxInMemorySize(4 * 1024 * 1024))
                 .build();
